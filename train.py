@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import category_encoders as ce
+import xgboost as xgb
 
 from math import sqrt
 from math import isnan
@@ -37,7 +38,14 @@ X_train = ct.transform(X_train)
 enc = ce.TargetEncoder(cols=[4, 5, 6, 7, 8, 9]).fit(X_train, y_train)
 X_train = enc.transform(X_train)
 
-clf = GridSearchCV(estimator=RandomForestRegressor(n_estimators=300, max_depth=20, n_jobs=-1), param_grid={'min_samples_split':[3,4]}, cv=5, verbose=2, n_jobs=-1)
+
+# clf = GridSearchCV(estimator=RandomForestRegressor(n_estimators=300, max_depth=20, min_samples_split=4, n_jobs=-1), param_grid={'min_samples_split':[3,4]}, cv=5, verbose=2, n_jobs=-1)
+grid={"learning_rate"    : [0.05, 0.10, 0.15, 0.20, 0.25, 0.30 ] ,
+         "max_depth"        : [ 3, 4, 5, 6, 8, 10, 12, 15],
+          "min_child_weight" : [ 1, 3, 5, 7 ],
+           "gamma"            : [ 0.0, 0.1, 0.2 , 0.3, 0.4 ],
+            "colsample_bytree" : [ 0.3, 0.4, 0.5 , 0.7 ] }
+clf = GridSearchCV(estimator=xgb.XGBRegressor(objective='reg:squarederror', random_state = 4, verbosity=0, gamma=1, eta=0.01, subsample=0.5), param_grid=grid, verbose=0, n_jobs=-1, cv=5)
 
 scores = cross_val_score(clf, X_train, y_train, cv=5, scoring='neg_mean_squared_error', n_jobs=-1)
 rmse_scores = [sqrt(x * -1) for x in scores]
@@ -47,6 +55,9 @@ print("Scores: ", rmse_scores, "\tAverage = ",
 
 clf.fit(X_train, y_train)
 print(clf.best_params_)
+
+X_test = ct.transform(X_test)
+X_test = enc.transform(X_test)
 
 predicted_scores = clf.predict(X_test)
 
