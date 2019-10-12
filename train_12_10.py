@@ -22,11 +22,19 @@ ct = ColumnTransformer(transformers=[('num_imp', SimpleImputer(strategy='median'
 
 ct.fit(X_train, y_train)
 X_train = ct.transform(X_train)
-senior_job_terms = ['senior', 'manager', 'doctor', 'lawyer', 'analyst', 'programmer', 'specialist', 'supervisor', 'chief']
 
-for j in X_train[['Profession']]:
-    print(j)
-X_train['Senior Job'] = senior_job
+jobs = X_train[:,6]
+senior_job_terms = ['senior', 'manager', 'doctor', 'lawyer', 'analyst', 'programmer', 'specialist', 'supervisor', 'chief']
+senior_job = np.zeros((len(jobs), 1))
+temp = []
+for j in jobs:
+    for s in senior_job_terms:
+        if s in j:
+            temp.append(True)
+            continue
+        temp.append(False)
+                                                    
+X_train = np.column_stack((X_train, senior_job))
 
 enc = ce.TargetEncoder(cols=[4, 5, 6, 7, 8, 9, 10]).fit(X_train, y_train)
 X_train = enc.transform(X_train)
@@ -47,6 +55,18 @@ clf.fit(X_train, y_train)
 print(clf.best_params_)
 
 X_test = ct.transform(X_test)
+
+jobs = X_test[:,6]
+senior_job = np.zeros((len(jobs), 1))
+temp = []
+for j in jobs:
+    for s in senior_job_terms:
+        if s in j:
+            temp.append(True)
+            continue
+        temp.append(False)
+
+X_test = np.column_stack((X_test, senior_job))
 X_test = enc.transform(X_test)
 
 predicted_scores = clf.predict(X_test)
