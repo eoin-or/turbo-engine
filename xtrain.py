@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from bayes_opt import BayesianOptimization
-from catboost import CatBoostRegressor, Pool
+from catboost import cv, CatBoostRegressor, Pool
 
 train_df = pd.read_csv('training.csv')
 
@@ -59,17 +59,28 @@ for j in jobs:
 X_test = np.column_stack((X_test, senior_job))
 test_pool = Pool(X_test, label=y_test, cat_features = [4, 5, 6, 7, 8, 9, 10]) 
 
-model = CatBoostRegressor(cat_features= [4, 5, 6, 7, 8, 9, 10], eval_metric='RMSE', od_type='Iter', od_wait=10)
-model.fit(train_pool, eval_set=test_pool, use_best_model=True)
+def cat_hyp(learning_rate, depth, l2_leaf_reg, random_strength, bagging_temperature):
+    params = {'iterations': 700,
+            'eval_metric': 'RMSE',
+            'verbose': False,
+            'learning_rate': learning_rate,
+            'depth': int(depth),
+            'l2_leaf_reg': l2_leaf_reg,
+            'random_strength': random_strength,
+            'bagging_temperature': bagging_temperature}
 
-grid = {'learning_rate': [0.03, 0.1],
-        'depth': [4, 6, 10],
-        'l2_leaf_reg': [1, 3, 5, 7, 9],
-        'random_strength' : [0, 2, 4, 8],
-        'bagging_temperature' : [0, 0.5, 2, 10]}
+    scores = cv(train_pool, params, fold_count=5)
+    return -1 * np.max(scores['test-rmse-mean'])
 
-results = model.grid_search(grid, X=train_pool, verbose=1) 
-print(results)
+bounds = {'learning_rate': (0.03, 0.1),
+        'depth': (4, 10),
+        'l2_leaf_reg': (1, 9),
+        'random_strength' : (0, 8),
+        'bagging_temperature' : (0, 10)}
+
+optimiser = BayesianOptimization(cat_hyp, bounds)
+optimiser.maximize(init_points=10, n_iter=50)
+print(optimiser.params)
 
 # enc = ce.TargetEncoder(cols=[4, 5, 6, 7, 8, 9, 10]).fit(X_train, y_train)
 # X_train = enc.transform(X_train)
