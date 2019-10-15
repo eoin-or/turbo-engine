@@ -63,11 +63,13 @@ def cat_hyp(learning_rate, depth, l2_leaf_reg, random_strength, bagging_temperat
     params = {'iterations': 700,
             'eval_metric': 'RMSE',
             'verbose': False,
-            'learning_rate': learning_rate,
             'depth': int(depth),
             'l2_leaf_reg': l2_leaf_reg,
             'random_strength': random_strength,
-            'bagging_temperature': bagging_temperature}
+            'bagging_temperature': bagging_temperature,
+            'use_best_model': True,
+            'od_type': 'Iter'
+            }
 
     scores = cv(train_pool, params, fold_count=5)
     return -1 * np.max(scores['test-rmse-mean'])
