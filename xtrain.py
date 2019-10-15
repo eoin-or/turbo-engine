@@ -42,7 +42,7 @@ for j in jobs:
         senior_job.append('no')
 
 X_train = np.column_stack((X_train, senior_job))
-train_pool = Pool(X_train, label=y_train, cat_features = [4, 5, 6, 7, 8, 9, 10])
+train_pool = Pool(X_train, label=y_train)
 
 jobs = X_test[:,6]
 senior_job = []
@@ -57,39 +57,41 @@ for j in jobs:
         senior_job.append('no')
 
 X_test = np.column_stack((X_test, senior_job))
-test_pool = Pool(X_test, label=y_test, cat_features = [4, 5, 6, 7, 8, 9, 10]) 
+test_pool = Pool(X_test, label=y_test) 
 
-def cat_hyp(learning_rate, depth, l2_leaf_reg, random_strength, bagging_temperature):
-    params = {'iterations': 700,
-            'eval_metric': 'RMSE',
+def cat_hyp(depth, l2_leaf_reg, learning_rate, n_estimators):
+    params = {'eval_metric': 'RMSE',
             'verbose': False,
             'depth': int(depth),
+            'n_estimators': int(n_estimators),
             'l2_leaf_reg': l2_leaf_reg,
-            'random_strength': random_strength,
-            'bagging_temperature': bagging_temperature,
+            'learning_rate': learning_rate,
+            'border_count': 254,
             'use_best_model': True,
             'od_type': 'Iter'
             }
 
-    scores = cv(train_pool, params, fold_count=5)
-    return -1 * np.max(scores['test-rmse-mean'])
+    scores = cv(train_pool, params, fold_count=3)
+    return -1 * np.min(scores['test-RMSE-mean'])
 
-bounds = {'learning_rate': (0.03, 0.1),
-        'depth': (4, 10),
+bounds = {'depth': (6, 10),
         'l2_leaf_reg': (1, 9),
-        'random_strength' : (0, 8),
-        'bagging_temperature' : (0, 10)}
+        'n_estimators': (300, 1000),
+        'learning_rate': (0.01, 0.1)}
 
 optimiser = BayesianOptimization(cat_hyp, bounds)
 optimiser.maximize(init_points=10, n_iter=50)
-print(optimiser.params)
+params = optimiser.max['params']
+params['depth'] = int(params['depth'])
+params['n_estimators'] = int(params['n_estimators'])
 
-# enc = ce.TargetEncoder(cols=[4, 5, 6, 7, 8, 9, 10]).fit(X_train, y_train)
-# X_train = enc.transform(X_train)
+tuned_model = CatBoostRegressor(optimiser.max['params'])
+tuned_model.fit(train_pool)
 
-# X_test = enc.transform(X_test)
+
+X_test = enc.transform(X_test)
 # X_test = xgb.DMatrix(X_test)
-predicted_scores = model.predict(X_test)
+predicted_scores = model.predict(X_pred)
 
 print('\a')
 with open('tcd ml 2019-20 income prediction submission file.csv', 'wb') as f:
